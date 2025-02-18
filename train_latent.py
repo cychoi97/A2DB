@@ -23,7 +23,7 @@ from torch.multiprocessing import Process
 from logger import Logger
 from distributed_util import init_processes
 from dataset import dataset
-from sbae.runner_latent import Runner
+from s2b.runner_latent import Runner
 
 import colored_traceback.always
 from ipdb import set_trace as debug
@@ -54,6 +54,7 @@ def create_training_options():
 
     # --------------- Latent ddim model ---------------
     parser.add_argument("--image-size",     type=int,   default=512)
+    parser.add_argument("--src",            type=str,   default='src',        help="source folder name")
     parser.add_argument("--trg",            type=str,   default='trg',        help="target folder name")
     parser.add_argument("--t0",             type=float, default=1e-4,         help="sigma start time in network parametrization")
     parser.add_argument("--T",              type=float, default=1.,           help="sigma end time in network parametrization")
@@ -128,7 +129,7 @@ def main(opt):
         set_seed(opt.seed + opt.global_rank)
 
     # build dataset
-    train_dataset = dataset.LatentDataset(opt, log, mode='train')
+    train_dataset = dataset.S2BDataset(opt, log, mode='train')
     # note: images should be normalized to [-1,1] for corruption methods to work properly
 
     run = Runner(opt, log)

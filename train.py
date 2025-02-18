@@ -23,7 +23,7 @@ from torch.multiprocessing import Process
 from logger import Logger
 from distributed_util import init_processes
 from dataset import dataset
-from sbae import Runner, download_ckpt
+from s2b import Runner, download_ckpt
 
 import colored_traceback.always
 from ipdb import set_trace as debug
@@ -68,13 +68,13 @@ def create_training_options():
 
     # optional configs for conditional network
     parser.add_argument("--cond-x1",        action="store_true",             help="conditional the network on degraded images")
-    parser.add_argument("--add-x1-noise",   action="store_true",             help="add noise to conditional network")
 
     # --------------- optimizer and loss ---------------
     parser.add_argument("--batch-size",     type=int,   default=16)
     parser.add_argument("--microbatch",     type=int,   default=1,           help="accumulate gradient over microbatch until full batch-size")
     parser.add_argument("--start-itr",      type=int,   default=0,           help="start or resumed iteration")
     parser.add_argument("--num-itr",        type=int,   default=50000,       help="training iteration")
+    parser.add_argument("--lambda-reg",     type=float, default=1.0,         help="weight of regularization loss for semantic encoder")
     parser.add_argument("--lr",             type=float, default=5e-5,        help="learning rate")
     parser.add_argument("--lr-gamma",       type=float, default=0.99,        help="learning rate decay ratio")
     parser.add_argument("--lr-step",        type=int,   default=1000,        help="learning rate decay step size")
@@ -129,8 +129,8 @@ def main(opt):
         set_seed(opt.seed + opt.global_rank)
 
     # build dataset
-    train_dataset = dataset.SBAEDataset(opt, log, mode='train')
-    val_dataset   = dataset.SBAEDataset(opt, log, mode='valid')
+    train_dataset = dataset.S2BDataset(opt, log, mode='train')
+    val_dataset   = dataset.S2BDataset(opt, log, mode='valid')
     # note: images should be normalized to [-1,1] for corruption methods to work properly
 
     run = Runner(opt, log)

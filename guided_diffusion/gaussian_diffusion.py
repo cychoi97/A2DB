@@ -274,7 +274,7 @@ class GaussianDiffusion:
         return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
     def p_mean_variance(
-        self, model, x, t, clip_denoised=True, denoised_fn=None, model_kwargs=None
+        self, model, x, t, cond=None, clip_denoised=True, denoised_fn=None, model_kwargs=None
     ):
         """
         Apply the model to get p(x_{t-1} | x_t), as well as a prediction of
@@ -301,7 +301,7 @@ class GaussianDiffusion:
 
         B, C = x.shape[:2]
         assert t.shape == (B,)
-        model_output = model(x, self._scale_timesteps(t), **model_kwargs)
+        model_output = model(x, self._scale_timesteps(t), x1=cond, **model_kwargs)
 
         if self.model_var_type in [ModelVarType.LEARNED, ModelVarType.LEARNED_RANGE]:
             assert model_output.shape == (B, C * 2, *x.shape[2:])
@@ -615,6 +615,7 @@ class GaussianDiffusion:
         model,
         x,
         t,
+        cond=None,
         clip_denoised=True,
         denoised_fn=None,
         cond_fn=None,
@@ -630,6 +631,7 @@ class GaussianDiffusion:
             model,
             x,
             t,
+            cond=cond,
             clip_denoised=clip_denoised,
             denoised_fn=denoised_fn,
             model_kwargs=model_kwargs,
@@ -702,6 +704,7 @@ class GaussianDiffusion:
         self,
         model,
         shape,
+        cond=None,
         noise=None,
         clip_denoised=True,
         denoised_fn=None,
@@ -720,6 +723,7 @@ class GaussianDiffusion:
         for sample in self.ddim_sample_loop_progressive(
             model,
             shape,
+            cond=cond,
             noise=noise,
             clip_denoised=clip_denoised,
             denoised_fn=denoised_fn,
@@ -736,6 +740,7 @@ class GaussianDiffusion:
         self,
         model,
         shape,
+        cond=None,
         noise=None,
         clip_denoised=True,
         denoised_fn=None,
@@ -773,6 +778,7 @@ class GaussianDiffusion:
                     model,
                     img,
                     t,
+                    cond=cond,
                     clip_denoised=clip_denoised,
                     denoised_fn=denoised_fn,
                     cond_fn=cond_fn,

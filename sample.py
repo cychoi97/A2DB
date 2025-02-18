@@ -9,6 +9,7 @@ import os
 import copy
 import argparse
 import random
+import pydicom
 from pathlib import Path
 from easydict import EasyDict as edict
 
@@ -23,11 +24,11 @@ import torchvision.utils as tu
 
 from logger import Logger
 import distributed_util as dist_util
-from sbae import download_ckpt
-from sbae.runner import Runner as SBAE_Runner
-from sbae.runner_latent import Runner as LDM_Runner
+from s2b import download_ckpt
+from s2b.runner import Runner as S2B_Runner
+from s2b.runner_latent import Runner as LDM_Runner
 from dataset import dataset
-from sbae import ckpt_util
+from s2b import ckpt_util
 from guided_diffusion.script_util import create_gaussian_diffusion
 
 import colored_traceback.always
@@ -84,7 +85,7 @@ def build_partition(opt, full_dataset, log):
     return subset
 
 def build_val_dataset(opt, log):
-    val_dataset = dataset.SBAEDataset(opt, log, mode='test')
+    val_dataset = dataset.S2BDataset(opt, log, mode='test')
 
     # build partition
     if opt.partition is not None:
@@ -92,21 +93,21 @@ def build_val_dataset(opt, log):
     return val_dataset
 
 def get_recon_imgs_fn(opt, nfe):
-    recon_imgs_fn = RESULT_DIR / "sbae" / opt.sbae_ckpt / "samples_nfe{}{}_iter{}{}".format(
+    recon_imgs_fn = RESULT_DIR / "s2b" / opt.sbae_ckpt / "samples_nfe{}{}_iter{}{}".format(
         nfe, "_clip" if opt.clip_denoise else "", opt.load_itr, "_" + str(opt.ldm_load_itr) if opt.use_ldm else ""
     )
     os.makedirs(recon_imgs_fn, exist_ok=True)
 
     return recon_imgs_fn
 
-def generate_style(opt, log, ldm_runner, ldm_ckpt_opt, nfe=10):
+def generate_style(opt, log, ldm_runner, ldm_ckpt_opt, cond=None, nfe=2):
     diffusion = create_gaussian_diffusion(steps=ldm_ckpt_opt.interval, noise_schedule=ldm_ckpt_opt.schedule_name, timestep_respacing=f"ddim{nfe}")
-    style = diffusion.ddim_sample_loop(ldm_runner.net, (opt.batch_size, 1024), clip_denoised=ldm_ckpt_opt.clip_denoise, progress=True)
-    log.info("Generated semantic style code!")
-    return style
+    z_style = diffusion.ddim_sample_loop(ldm_runner.net, (opt.batch_size, 1024), cond=cond, clip_denoised=ldm_ckpt_opt.clip_denoise, progress=True)
+    log.info("Generated style feature!")
+    return z_style
 
 def compute_batch(ckpt_opt, out):
-    clean_img, corrupt_img = out
+    clean_img, corrupt_img, fpath = out
     x0 = clean_img.to(opt.device)
     x1 = corrupt_img.to(opt.device)
     cond = x1.detach() if ckpt_opt.cond_x1 else None
@@ -114,16 +115,37 @@ def compute_batch(ckpt_opt, out):
     # if ckpt_opt.add_x1_noise: # only for decolor
     #     x1 = x1 + torch.randn_like(x1)
  
-    return x0, x1, cond
+    return x0, x1, cond, fpath
+
+def save_dicom(dcm_path, predict_tensor, save_path):
+    predict_img = (predict_tensor*4095.0-1024.0).detach().clone().cpu().numpy()
+    dcm = pydicom.dcmread(dcm_path, force=True)
+
+    intercept = dcm.RescaleIntercept
+    slope = dcm.RescaleSlope
+    
+    predict_img -= np.float32(intercept)
+    if slope != 1:
+        predict_img = predict_img.astype(np.float32) / slope
+    predict_img = predict_img.astype(np.int16)
+
+    dcm.file_meta.TransferSyntaxUID = pydicom.uid.ExplicitVRLittleEndian
+    dcm.PixelData = predict_img.squeeze().tobytes()
+
+    dcm.SmallestImagePixelValue = predict_img.min()
+    dcm.LargestImagePixelValue = predict_img.max()
+    dcm[0x0028,0x0106].VR = 'US'
+    dcm[0x0028,0x0107].VR = 'US'
+
+    dcm.save_as(save_path)
 
 @torch.no_grad()
 def main(opt):
     log = Logger(opt.global_rank, ".log")
 
     # get (default) ckpt option
-    sbae_ckpt_opt = ckpt_util.build_ckpt_option(opt, log, RESULT_DIR / "sbae" / opt.sbae_ckpt)
+    sbae_ckpt_opt = ckpt_util.build_ckpt_option(opt, log, RESULT_DIR / "s2b" / opt.sbae_ckpt)
     nfe = opt.nfe or sbae_ckpt_opt.interval-1
-    ldm_ckpt_opt = ckpt_util.build_ckpt_option(opt, log, RESULT_DIR / "latent-ddim" / opt.ldm_ckpt, net="latent-ddim")
 
     # build imagenet val dataset
     val_dataset = build_val_dataset(opt, log)
@@ -136,19 +158,23 @@ def main(opt):
     )
 
     # build runner
-    sbae_runner = SBAE_Runner(sbae_ckpt_opt, log, save_opt=False)
-    ldm_runner = LDM_Runner(ldm_ckpt_opt, log, save_opt=False)
+    s2b_runner = S2B_Runner(sbae_ckpt_opt, log, save_opt=False)
 
     # handle use_fp16 for ema
     if opt.use_fp16:
-        sbae_runner.ema.copy_to() # copy weight from ema to net
-        sbae_runner.net.diffusion_model.convert_to_fp16()
-        sbae_runner.net.semantic_enc.convert_to_fp16()
-        sbae_runner.ema = ExponentialMovingAverage(sbae_runner.net.parameters(), decay=0.99) # re-init ema with fp16 weight
+        s2b_runner.ema.copy_to() # copy weight from ema to net
+        s2b_runner.net.diffusion_model.convert_to_fp16()
+        s2b_runner.net.semantic_enc.convert_to_fp16()
+        s2b_runner.ema = ExponentialMovingAverage(s2b_runner.net.parameters(), decay=0.99) # re-init ema with fp16 weight
 
-        ldm_runner.ema.copy_to() # copy weight from ema to net
-        ldm_runner.net.convert_to_fp16()
-        ldm_runner.ema = ExponentialMovingAverage(ldm_runner.net.parameters(), decay=0.99) # re-init ema with fp16 weight
+    # use ldm runner
+    if opt.use_ldm:
+        ldm_ckpt_opt = ckpt_util.build_ckpt_option(opt, log, RESULT_DIR / "latent-ddim" / opt.ldm_ckpt, net="latent-ddim")
+        ldm_runner = LDM_Runner(ldm_ckpt_opt, log, save_opt=False)
+        if opt.use_fp16:
+            ldm_runner.ema.copy_to() # copy weight from ema to net
+            ldm_runner.net.convert_to_fp16()
+            ldm_runner.ema = ExponentialMovingAverage(ldm_runner.net.parameters(), decay=0.99) # re-init ema with fp16 weight
 
     # create save folder
     recon_imgs_fn = get_recon_imgs_fn(opt, nfe)
@@ -158,21 +184,27 @@ def main(opt):
     num = 0
 
     for loader_itr, out in enumerate(val_loader):
-        x0, x1, cond = compute_batch(sbae_ckpt_opt, out)
+        x0, x1, cond, fpath = compute_batch(sbae_ckpt_opt, out)
 
-        # generate semantic style using latent ddim network
-        generated_style = generate_style(opt, log, ldm_runner=ldm_runner, ldm_ckpt_opt=ldm_ckpt_opt, nfe=nfe) if opt.use_ldm else None
+        # generate style using latent ddim network
+        generated_style = generate_style(opt, log, ldm_runner=ldm_runner, ldm_ckpt_opt=ldm_ckpt_opt, cond=x1, nfe=nfe) if opt.use_ldm else None
 
-        xs, _ = sbae_runner.ddpm_sampling(
+        xs, _ = s2b_runner.ddpm_sampling(
             sbae_ckpt_opt, x0, x1, cond=cond, generated_style=generated_style, clip_denoise=opt.clip_denoise, nfe=nfe, verbose=opt.n_gpu_per_node==1
         )
         recon_img = xs[:, 0, ...].to(opt.device)
+        if opt.clip_denoise: recon_img.clamp_(-1., 1.)
 
         assert recon_img.shape == x1.shape == x0.shape
 
-        tu.save_image((x1+1)/2, recon_imgs_fn / f"{loader_itr:05}_source.png", value_range=(0, 1))
-        tu.save_image((x0+1)/2, recon_imgs_fn / f"{loader_itr:05}_target.png", value_range=(0, 1))
-        tu.save_image((recon_img+1)/2, recon_imgs_fn / f"{loader_itr:05}_target_recon.png", value_range=(0, 1))            
+        tu.save_image((x1+1)/2, recon_imgs_fn / f"{fpath[0].split('/')[-1]}_source.png", value_range=(0, 1))
+        tu.save_image((x0+1)/2, recon_imgs_fn / f"{fpath[0].split('/')[-1]}_target.png", value_range=(0, 1))
+        tu.save_image((recon_img+1)/2, recon_imgs_fn / f"{fpath[0].split('/')[-1]}_target_recon.png", value_range=(0, 1))            
+        
+        # save as dicom
+        if opt.save_dicom and opt.batch_size == 1:
+            os.makedirs(recon_imgs_fn / "dcm" / opt.src / fpath[0].split("/")[-2], exist_ok=True)
+            save_dicom(fpath[0], (recon_img+1)/2, recon_imgs_fn / "dcm" / opt.src / fpath[0].split("/")[-2] / fpath[0].split("/")[-1])
         log.info("Saved output images!")
 
         # [-1,1]
@@ -183,7 +215,7 @@ def main(opt):
         log.info(f"Collected {num} recon images!")
         dist.barrier()
 
-    del sbae_runner
+    del s2b_runner
 
     arr = torch.cat(recon_imgs, axis=0)[:n_samples]
 
@@ -212,17 +244,18 @@ if __name__ == '__main__':
     parser.add_argument("--partition",      type=str,  default=None,        help="e.g., '0_4' means the first 25% of the dataset")
 
     # latent ddim
-    parser.add_argument("--ldm-load-itr",   type=int,  default=280000)
+    parser.add_argument("--ldm-load-itr",   type=int,  default=200000)
     parser.add_argument("--ldm-ckpt",       type=str,  default=None,        help="the checkpoint name from which we wish to sample from ldm")
     parser.add_argument("--use-ldm",        action="store_true",            help="use latent ddim network for generating semantic style")
 
     # sample
     parser.add_argument("--load-itr",       type=int,  default=50000)
     parser.add_argument("--batch-size",     type=int,  default=1)
-    parser.add_argument("--sbae-ckpt",      type=str,  default=None,        help="the checkpoint name from which we wish to sample from sbae")
+    parser.add_argument("--s2b-ckpt",      type=str,  default=None,        help="the checkpoint name from which we wish to sample from s2b")
     parser.add_argument("--nfe",            type=int,  default=None,        help="sampling steps")
     parser.add_argument("--clip-denoise",   action="store_true",            help="clamp predicted image to [-1,1] at each")
     parser.add_argument("--use-fp16",       action="store_true",            help="use fp16 network weight for faster sampling")
+    parser.add_argument("--save-dicom",     action="store_true",            help="save as dicom file")
 
     arg = parser.parse_args()
 
