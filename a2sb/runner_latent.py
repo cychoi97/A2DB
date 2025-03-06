@@ -25,7 +25,7 @@ import distributed_util as dist_util
 from . import util
 from .network import Image256Net, Image512Net, MLPNet
 from .diffusion import Diffusion
-from s2b import ckpt_util
+from a2sb import ckpt_util
 from guided_diffusion.script_util import create_gaussian_diffusion
 
 from ipdb import set_trace as debug
@@ -81,15 +81,15 @@ class Runner(object):
         
         if opt.image_size == 256:
             self.net = MLPNet(num_channels=512, num_hidden_channels=1024, num_layers=10, skip_layers=list(range(1, 10)), image_size=opt.image_size, use_fp16=False)
-            self.s2b = Image256Net(log, noise_levels=noise_levels, image_size=opt.image_size, in_channels=sbae_opt.in_channels,
+            self.a2sb = Image256Net(log, noise_levels=noise_levels, image_size=opt.image_size, in_channels=sbae_opt.in_channels,
                                     use_fp16=sbae_opt.use_fp16, cond=sbae_opt.cond_x1)
         elif opt.image_size == 512:
             self.net = MLPNet(num_channels=1024, num_hidden_channels=2048, num_layers=20, skip_layers=list(range(1, 20)), image_size=opt.image_size, use_fp16=False)
-            self.s2b = Image512Net(log, noise_levels=noise_levels, image_size=opt.image_size, in_channels=sbae_opt.in_channels,
+            self.a2sb = Image512Net(log, noise_levels=noise_levels, image_size=opt.image_size, in_channels=sbae_opt.in_channels,
                                     use_fp16=sbae_opt.use_fp16, cond=sbae_opt.cond_x1)
 
         self.ema = ExponentialMovingAverage(self.net.parameters(), decay=opt.ema)
-        self.sbae_ema = ExponentialMovingAverage(self.s2b.parameters(), decay=sbae_opt.ema)
+        self.sbae_ema = ExponentialMovingAverage(self.a2sb.parameters(), decay=sbae_opt.ema)
 
         if opt.load:
             checkpoint = torch.load(opt.load, map_location="cpu")
@@ -99,13 +99,13 @@ class Runner(object):
             log.info(f"[Ema] Loaded ema ckpt: {opt.load}!")
 
         sbae_checkpoint = torch.load(sbae_opt.load, map_location="cpu")
-        self.s2b.load_state_dict(sbae_checkpoint['net'])
+        self.a2sb.load_state_dict(sbae_checkpoint['net'])
         log.info(f"[Net] Loaded network ckpt: {sbae_opt.load}!")
         self.sbae_ema.load_state_dict(sbae_checkpoint["ema"])
         log.info(f"[Ema] Loaded ema ckpt: {sbae_opt.load}!")
 
         self.net.to(opt.device)
-        self.s2b.to(opt.device)
+        self.a2sb.to(opt.device)
         self.ema.to(opt.device)
         self.sbae_ema.to(opt.device)
 
@@ -123,8 +123,8 @@ class Runner(object):
         x0 = clean_img.detach().to(opt.device)
         x1 = corrupt_img.detach().to(opt.device)
         with self.sbae_ema.average_parameters():
-            self.s2b.eval()
-            z_sem = self.s2b.semantic_enc(x1).detach().clone().cpu()
+            self.a2sb.eval()
+            z_sem = self.a2sb.semantic_enc(x1).detach().clone().cpu()
         return z_sem, x1
 
     def train(self, opt, train_dataset):

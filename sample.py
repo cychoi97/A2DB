@@ -24,11 +24,11 @@ import torchvision.utils as tu
 
 from logger import Logger
 import distributed_util as dist_util
-from s2b import download_ckpt
-from s2b.runner import Runner as S2B_Runner
-from s2b.runner_latent import Runner as LDM_Runner
+from a2sb import download_ckpt
+from a2sb.runner import Runner as A2SB_Runner
+from a2sb.runner_latent import Runner as LDM_Runner
 from dataset import dataset
-from s2b import ckpt_util
+from a2sb import ckpt_util
 from guided_diffusion.script_util import create_gaussian_diffusion
 
 import colored_traceback.always
@@ -85,7 +85,7 @@ def build_partition(opt, full_dataset, log):
     return subset
 
 def build_val_dataset(opt, log):
-    val_dataset = dataset.S2BDataset(opt, log, mode='test')
+    val_dataset = dataset.A2SBDataset(opt, log, mode='test')
 
     # build partition
     if opt.partition is not None:
@@ -158,14 +158,14 @@ def main(opt):
     )
 
     # build runner
-    s2b_runner = S2B_Runner(sbae_ckpt_opt, log, save_opt=False)
+    a2sb_runner = A2SB_Runner(sbae_ckpt_opt, log, save_opt=False)
 
     # handle use_fp16 for ema
     if opt.use_fp16:
-        s2b_runner.ema.copy_to() # copy weight from ema to net
-        s2b_runner.net.diffusion_model.convert_to_fp16()
-        s2b_runner.net.semantic_enc.convert_to_fp16()
-        s2b_runner.ema = ExponentialMovingAverage(s2b_runner.net.parameters(), decay=0.99) # re-init ema with fp16 weight
+        a2sb_runner.ema.copy_to() # copy weight from ema to net
+        a2sb_runner.net.diffusion_model.convert_to_fp16()
+        a2sb_runner.net.semantic_enc.convert_to_fp16()
+        a2sb_runner.ema = ExponentialMovingAverage(a2sb_runner.net.parameters(), decay=0.99) # re-init ema with fp16 weight
 
     # use ldm runner
     if opt.use_ldm:
@@ -189,7 +189,7 @@ def main(opt):
         # generate style using latent ddim network
         generated_style = generate_style(opt, log, ldm_runner=ldm_runner, ldm_ckpt_opt=ldm_ckpt_opt, cond=x1, nfe=nfe) if opt.use_ldm else None
 
-        xs, _ = s2b_runner.ddpm_sampling(
+        xs, _ = a2sb_runner.ddpm_sampling(
             sbae_ckpt_opt, x0, x1, cond=cond, generated_style=generated_style, clip_denoise=opt.clip_denoise, nfe=nfe, verbose=opt.n_gpu_per_node==1
         )
         recon_img = xs[:, 0, ...].to(opt.device)
@@ -215,7 +215,7 @@ def main(opt):
         log.info(f"Collected {num} recon images!")
         dist.barrier()
 
-    del s2b_runner
+    del a2sb_runner
 
     arr = torch.cat(recon_imgs, axis=0)[:n_samples]
 

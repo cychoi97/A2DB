@@ -29,7 +29,7 @@ from .ckpt_util import (
 from ipdb import set_trace as debug
 
 #===================================================================================================#
-#                                     First Stage: SBAE Network                                     #
+#                                     First Stage: A2SB Network                                     #
 #===================================================================================================#
 
 class Image256Net(torch.nn.Module):

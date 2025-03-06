@@ -129,8 +129,8 @@ def main(opt):
         set_seed(opt.seed + opt.global_rank)
 
     # build dataset
-    train_dataset = dataset.S2BDataset(opt, log, mode='train')
-    val_dataset   = dataset.S2BDataset(opt, log, mode='valid')
+    train_dataset = dataset.A2SBDataset(opt, log, mode='train')
+    val_dataset   = dataset.A2SBDataset(opt, log, mode='valid')
     # note: images should be normalized to [-1,1] for corruption methods to work properly
 
     run = Runner(opt, log)

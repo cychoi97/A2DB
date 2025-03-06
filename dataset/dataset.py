@@ -13,7 +13,7 @@ from torchvision import transforms as T
 EXTENSION = ['.jpg', '.jpeg', '.png', '.tiff', '.dcm']
 
 
-class S2BDataset(Dataset):
+class A2SBDataset(Dataset):
     def __init__(self, opt, log, mode):
         super().__init__()
         self.mode = mode

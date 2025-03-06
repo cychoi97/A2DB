@@ -23,7 +23,7 @@ from torch.multiprocessing import Process
 from logger import Logger
 from distributed_util import init_processes
 from dataset import dataset
-from s2b.runner_latent import Runner
+from a2sb.runner_latent import Runner
 
 import colored_traceback.always
 from ipdb import set_trace as debug
@@ -129,7 +129,7 @@ def main(opt):
         set_seed(opt.seed + opt.global_rank)
 
     # build dataset
-    train_dataset = dataset.S2BDataset(opt, log, mode='train')
+    train_dataset = dataset.A2SBDataset(opt, log, mode='train')
     # note: images should be normalized to [-1,1] for corruption methods to work properly
 
     run = Runner(opt, log)
