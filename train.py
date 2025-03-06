@@ -118,9 +118,9 @@ def create_training_options():
 
 def main(opt):
     log = Logger(opt.global_rank, opt.log_dir)
-    log.info("=======================================================")
-    log.info("            Schrodinger Bridge Autoencoders            ")
-    log.info("=======================================================")
+    log.info("=========================================================")
+    log.info("         Attenuation-Adaptive Schrodinger Bridge         ")
+    log.info("=========================================================")
     log.info("Command used:\n{}".format(" ".join(sys.argv)))
     log.info(f"Experiment ID: {opt.name}")
 
