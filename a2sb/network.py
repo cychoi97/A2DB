@@ -16,14 +16,14 @@ from guided_diffusion.fp16_util import convert_module_to_f16, convert_module_to_
 from . import util
 from functools import partial
 from .ckpt_util import (
-    I2SB_IMG256_UNCOND_PKL,
-    I2SB_IMG256_UNCOND_CKPT,
-    I2SB_IMG256_COND_PKL,
-    I2SB_IMG256_COND_CKPT,
-    I2SB_IMG512_UNCOND_PKL,
-    I2SB_IMG512_UNCOND_CKPT,
-    I2SB_IMG512_COND_PKL,
-    I2SB_IMG512_COND_CKPT,
+    A2SB_IMG256_UNCOND_PKL,
+    A2SB_IMG256_UNCOND_CKPT,
+    A2SB_IMG256_COND_PKL,
+    A2SB_IMG256_COND_CKPT,
+    A2SB_IMG512_UNCOND_PKL,
+    A2SB_IMG512_UNCOND_CKPT,
+    A2SB_IMG512_COND_PKL,
+    A2SB_IMG512_COND_CKPT,
 )
 
 from ipdb import set_trace as debug
@@ -37,7 +37,7 @@ class Image256Net(torch.nn.Module):
         super(Image256Net, self).__init__()
 
         # initialize model
-        ckpt_pkl = os.path.join(ckpt_dir, I2SB_IMG256_COND_PKL if cond else I2SB_IMG256_UNCOND_PKL)
+        ckpt_pkl = os.path.join(ckpt_dir, A2SB_IMG256_COND_PKL if cond else A2SB_IMG256_UNCOND_PKL)
         with open(ckpt_pkl, "rb") as f:
             kwargs = pickle.load(f)
         kwargs["use_fp16"] = use_fp16
@@ -55,7 +55,7 @@ class Image256Net(torch.nn.Module):
 
         # load (modified) adm ckpt
         if pretrained_adm:
-            ckpt_pt = os.path.join(ckpt_dir, I2SB_IMG256_COND_CKPT if cond else I2SB_IMG256_UNCOND_CKPT)
+            ckpt_pt = os.path.join(ckpt_dir, A2SB_IMG256_COND_CKPT if cond else A2SB_IMG256_UNCOND_CKPT)
             out = torch.load(ckpt_pt, map_location="cpu")
             self.diffusion_model.load_state_dict(out)
             log.info(f"[Net] Loaded pretrained adm {ckpt_pt}!")
@@ -80,14 +80,14 @@ class Image512Net(torch.nn.Module):
         super(Image512Net, self).__init__()
 
         # initialize model
-        ckpt_pkl = os.path.join(ckpt_dir, I2SB_IMG512_COND_PKL if cond else I2SB_IMG512_UNCOND_PKL)
+        ckpt_pkl = os.path.join(ckpt_dir, A2SB_IMG512_COND_PKL if cond else A2SB_IMG512_UNCOND_PKL)
         with open(ckpt_pkl, "rb") as f:
             kwargs = pickle.load(f)
         kwargs["use_fp16"] = use_fp16
         if cond:
             in_channels = in_channels * 2
         kwargs["in_channels"] = in_channels
-        # channel size = sbae-xs:128, sbae-s:192, sbae-m:256, sbae-l:320, sbae-xl:384
+        # channel size = a2sb-xs:128, a2sb-s:192, a2sb-m:256, a2sb-l:320, a2sb-xl:384
         kwargs["num_channels"] = 256
         self.diffusion_model = create_model(**kwargs)
         self.semantic_enc = create_encoder(image_size,
@@ -100,7 +100,7 @@ class Image512Net(torch.nn.Module):
 
         # load (modified) adm ckpt
         if pretrained_adm:
-            ckpt_pt = os.path.join(ckpt_dir, I2SB_IMG512_COND_CKPT if cond else I2SB_IMG512_UNCOND_CKPT)
+            ckpt_pt = os.path.join(ckpt_dir, A2SB_IMG512_COND_CKPT if cond else A2SB_IMG512_UNCOND_CKPT)
             out = torch.load(ckpt_pt, map_location="cpu")
             self.diffusion_model.load_state_dict(out)
             log.info(f"[Net] Loaded pretrained adm {ckpt_pt}!")

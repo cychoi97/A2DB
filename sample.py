@@ -93,7 +93,7 @@ def build_val_dataset(opt, log):
     return val_dataset
 
 def get_recon_imgs_fn(opt, nfe):
-    recon_imgs_fn = RESULT_DIR / "s2b" / opt.sbae_ckpt / "samples_nfe{}{}_iter{}{}".format(
+    recon_imgs_fn = RESULT_DIR / "a2sb" / opt.a2sb_ckpt / "samples_nfe{}{}_iter{}{}".format(
         nfe, "_clip" if opt.clip_denoise else "", opt.load_itr, "_" + str(opt.ldm_load_itr) if opt.use_ldm else ""
     )
     os.makedirs(recon_imgs_fn, exist_ok=True)
@@ -144,8 +144,8 @@ def main(opt):
     log = Logger(opt.global_rank, ".log")
 
     # get (default) ckpt option
-    sbae_ckpt_opt = ckpt_util.build_ckpt_option(opt, log, RESULT_DIR / "s2b" / opt.sbae_ckpt)
-    nfe = opt.nfe or sbae_ckpt_opt.interval-1
+    a2sb_ckpt_opt = ckpt_util.build_ckpt_option(opt, log, RESULT_DIR / "a2sb" / opt.a2sb_ckpt)
+    nfe = opt.nfe or a2sb_ckpt_opt.interval-1
 
     # build imagenet val dataset
     val_dataset = build_val_dataset(opt, log)
@@ -158,7 +158,7 @@ def main(opt):
     )
 
     # build runner
-    a2sb_runner = A2SB_Runner(sbae_ckpt_opt, log, save_opt=False)
+    a2sb_runner = A2SB_Runner(a2sb_ckpt_opt, log, save_opt=False)
 
     # handle use_fp16 for ema
     if opt.use_fp16:
@@ -184,13 +184,13 @@ def main(opt):
     num = 0
 
     for loader_itr, out in enumerate(val_loader):
-        x0, x1, cond, fpath = compute_batch(sbae_ckpt_opt, out)
+        x0, x1, cond, fpath = compute_batch(a2sb_ckpt_opt, out)
 
         # generate style using latent ddim network
         generated_style = generate_style(opt, log, ldm_runner=ldm_runner, ldm_ckpt_opt=ldm_ckpt_opt, cond=x1, nfe=nfe) if opt.use_ldm else None
 
         xs, _ = a2sb_runner.ddpm_sampling(
-            sbae_ckpt_opt, x0, x1, cond=cond, generated_style=generated_style, clip_denoise=opt.clip_denoise, nfe=nfe, verbose=opt.n_gpu_per_node==1
+            a2sb_ckpt_opt, x0, x1, cond=cond, generated_style=generated_style, clip_denoise=opt.clip_denoise, nfe=nfe, verbose=opt.n_gpu_per_node==1
         )
         recon_img = xs[:, 0, ...].to(opt.device)
         if opt.clip_denoise: recon_img.clamp_(-1., 1.)
@@ -251,7 +251,7 @@ if __name__ == '__main__':
     # sample
     parser.add_argument("--load-itr",       type=int,  default=50000)
     parser.add_argument("--batch-size",     type=int,  default=1)
-    parser.add_argument("--s2b-ckpt",      type=str,  default=None,        help="the checkpoint name from which we wish to sample from s2b")
+    parser.add_argument("--a2sb-ckpt",      type=str,  default=None,        help="the checkpoint name from which we wish to sample from a2sb")
     parser.add_argument("--nfe",            type=int,  default=None,        help="sampling steps")
     parser.add_argument("--clip-denoise",   action="store_true",            help="clamp predicted image to [-1,1] at each")
     parser.add_argument("--use-fp16",       action="store_true",            help="use fp16 network weight for faster sampling")

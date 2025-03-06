@@ -27,16 +27,16 @@ from easydict import EasyDict as edict
 from ipdb import set_trace as debug
 
 ADM_IMG256_UNCOND_CKPT = "https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt"
-I2SB_IMG256_UNCOND_PKL = "256x256_diffusion_uncond_fixedsigma.pkl"
-I2SB_IMG256_UNCOND_CKPT = "256x256_diffusion_uncond_fixedsigma.pt"
-I2SB_IMG256_COND_PKL = "256x256_diffusion_cond_fixedsigma.pkl"
-I2SB_IMG256_COND_CKPT = "256x256_diffusion_cond_fixedsigma.pt"
+A2SB_IMG256_UNCOND_PKL = "256x256_diffusion_uncond_fixedsigma.pkl"
+A2SB_IMG256_UNCOND_CKPT = "256x256_diffusion_uncond_fixedsigma.pt"
+A2SB_IMG256_COND_PKL = "256x256_diffusion_cond_fixedsigma.pkl"
+A2SB_IMG256_COND_CKPT = "256x256_diffusion_cond_fixedsigma.pt"
 
 ADM_IMG512_UNCOND_CKPT = "https://openaipublic.blob.core.windows.net/diffusion/jul-2021/512x512_diffusion.pt"
-I2SB_IMG512_UNCOND_PKL = "512x512_diffusion_uncond_fixedsigma.pkl"
-I2SB_IMG512_UNCOND_CKPT = "512x512_diffusion_uncond_fixedsigma.pt"
-I2SB_IMG512_COND_PKL = "512x512_diffusion_cond_fixedsigma.pkl"
-I2SB_IMG512_COND_CKPT = "512x512_diffusion_cond_fixedsigma.pt"
+A2SB_IMG512_UNCOND_PKL = "512x512_diffusion_uncond_fixedsigma.pkl"
+A2SB_IMG512_UNCOND_CKPT = "512x512_diffusion_uncond_fixedsigma.pt"
+A2SB_IMG512_COND_PKL = "512x512_diffusion_cond_fixedsigma.pkl"
+A2SB_IMG512_COND_CKPT = "512x512_diffusion_cond_fixedsigma.pt"
 
 def download(url, local_path, chunk_size=1024):
     os.makedirs(os.path.split(local_path)[0], exist_ok=True)
@@ -146,8 +146,8 @@ def extract_diffusion_kwargs(kwargs):
     }
 
 def download_adm_image256_uncond_ckpt(ckpt_dir="data/"):
-    ckpt_pkl = os.path.join(ckpt_dir, I2SB_IMG256_UNCOND_PKL)
-    ckpt_pt  = os.path.join(ckpt_dir, I2SB_IMG256_UNCOND_CKPT)
+    ckpt_pkl = os.path.join(ckpt_dir, A2SB_IMG256_UNCOND_PKL)
+    ckpt_pt  = os.path.join(ckpt_dir, A2SB_IMG256_UNCOND_CKPT)
     if os.path.exists(ckpt_pkl) and os.path.exists(ckpt_pt):
         return
 
@@ -174,8 +174,8 @@ def download_adm_image256_uncond_ckpt(ckpt_dir="data/"):
     print(f"Saved adm uncond pretrain models at {ckpt_pkl} and {ckpt_pt}!")
 
 def download_adm_image256_cond_ckpt(ckpt_dir="data/"):
-    ckpt_pkl = os.path.join(ckpt_dir, I2SB_IMG256_COND_PKL)
-    ckpt_pt  = os.path.join(ckpt_dir, I2SB_IMG256_COND_CKPT)
+    ckpt_pkl = os.path.join(ckpt_dir, A2SB_IMG256_COND_PKL)
+    ckpt_pt  = os.path.join(ckpt_dir, A2SB_IMG256_COND_CKPT)
     if os.path.exists(ckpt_pkl) and os.path.exists(ckpt_pt):
         return
 
@@ -211,8 +211,8 @@ def download_adm_image256_cond_ckpt(ckpt_dir="data/"):
     print(f"Saved adm cond pretrain models at {ckpt_pkl} and {ckpt_pt}!")
 
 def download_adm_image512_uncond_ckpt(ckpt_dir="data/"):
-    ckpt_pkl = os.path.join(ckpt_dir, I2SB_IMG512_UNCOND_PKL)
-    ckpt_pt  = os.path.join(ckpt_dir, I2SB_IMG512_UNCOND_CKPT)
+    ckpt_pkl = os.path.join(ckpt_dir, A2SB_IMG512_UNCOND_PKL)
+    ckpt_pt  = os.path.join(ckpt_dir, A2SB_IMG512_UNCOND_CKPT)
     if os.path.exists(ckpt_pkl) and os.path.exists(ckpt_pt):
         return
 
@@ -239,8 +239,8 @@ def download_adm_image512_uncond_ckpt(ckpt_dir="data/"):
     print(f"Saved adm uncond pretrain models at {ckpt_pkl} and {ckpt_pt}!")
 
 def download_adm_image512_cond_ckpt(ckpt_dir="data/"):
-    ckpt_pkl = os.path.join(ckpt_dir, I2SB_IMG512_COND_PKL)
-    ckpt_pt  = os.path.join(ckpt_dir, I2SB_IMG512_COND_CKPT)
+    ckpt_pkl = os.path.join(ckpt_dir, A2SB_IMG512_COND_PKL)
+    ckpt_pt  = os.path.join(ckpt_dir, A2SB_IMG512_COND_CKPT)
     if os.path.exists(ckpt_pkl) and os.path.exists(ckpt_pt):
         return
 

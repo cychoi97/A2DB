@@ -53,7 +53,7 @@ def create_training_options():
     parser.add_argument("--num-proc-node",  type=int,   default=1,           help="The number of nodes in multi node env")
     # parser.add_argument("--amp",            action="store_true")
 
-    # --------------- SBAE model ---------------
+    # --------------- A2SB model ---------------
     parser.add_argument("--image-size",     type=int,   default=512)
     parser.add_argument("--in-channels",    type=int,   default=1)
     parser.add_argument("--src",            type=str,   default='src',       help="source folder name")
@@ -102,11 +102,11 @@ def create_training_options():
 
     # ========= path handle =========
     os.makedirs(opt.log_dir, exist_ok=True)
-    opt.ckpt_path = RESULT_DIR / "sbae" / opt.name
+    opt.ckpt_path = RESULT_DIR / "a2sb" / opt.name
     os.makedirs(opt.ckpt_path, exist_ok=True)
 
     if opt.ckpt is not None:
-        ckpt_file = RESULT_DIR / "sbae" / opt.ckpt / f"{opt.start_itr:0>7}.pt"
+        ckpt_file = RESULT_DIR / "a2sb" / opt.ckpt / f"{opt.start_itr:0>7}.pt"
         assert ckpt_file.exists()
         opt.load = ckpt_file
     else:

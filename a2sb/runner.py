@@ -81,7 +81,7 @@ class Runner(object):
         betas = make_beta_schedule(n_timestep=opt.interval, linear_end=opt.beta_max / opt.interval)
         betas = np.concatenate([betas[:opt.interval//2], np.flip(betas[:opt.interval//2])])
         self.diffusion = Diffusion(betas, opt.device)
-        log.info(f"[Diffusion] Built SBAE diffusion: steps={len(betas)}!")
+        log.info(f"[Diffusion] Built A2SB diffusion: steps={len(betas)}!")
 
         noise_levels = torch.linspace(opt.t0, opt.T, opt.interval, device=opt.device) * opt.interval
         if opt.image_size == 256:
