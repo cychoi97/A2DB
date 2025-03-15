@@ -23,7 +23,7 @@ from torch.multiprocessing import Process
 from logger import Logger
 from distributed_util import init_processes
 from dataset import dataset
-from s2b import Runner, download_ckpt
+from a2sb.runner import Runner
 
 import colored_traceback.always
 from ipdb import set_trace as debug
@@ -73,7 +73,7 @@ def create_training_options():
     parser.add_argument("--batch-size",     type=int,   default=16)
     parser.add_argument("--microbatch",     type=int,   default=1,           help="accumulate gradient over microbatch until full batch-size")
     parser.add_argument("--start-itr",      type=int,   default=0,           help="start or resumed iteration")
-    parser.add_argument("--num-itr",        type=int,   default=50000,       help="training iteration")
+    parser.add_argument("--num-itr",        type=int,   default=200000,      help="training iteration")
     parser.add_argument("--lambda-reg",     type=float, default=1.0,         help="weight of regularization loss for semantic encoder")
     parser.add_argument("--lr",             type=float, default=5e-5,        help="learning rate")
     parser.add_argument("--lr-gamma",       type=float, default=0.99,        help="learning rate decay ratio")
@@ -130,7 +130,7 @@ def main(opt):
 
     # build dataset
     train_dataset = dataset.A2SBDataset(opt, log, mode='train')
-    val_dataset   = dataset.A2SBDataset(opt, log, mode='valid')
+    val_dataset   = dataset.A2SBDataset(opt, log, mode='train')
     # note: images should be normalized to [-1,1] for corruption methods to work properly
 
     run = Runner(opt, log)
